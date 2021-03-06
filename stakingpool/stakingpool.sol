@@ -12,8 +12,6 @@ import "./interfaces/IStakingRewards.sol";
 import "./RewardsDistributionRecipient.sol";
 import "./Pausable.sol";
 
-
-
 // https://docs.synthetix.io/contracts/source/contracts/stakingrewards
 contract StakingPool is IStakingRewards, RewardsDistributionRecipient, ReentrancyGuard, Pausable {
     using SafeMath for uint256;
@@ -21,19 +19,19 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
 
     /* ========== STATE VARIABLES ========== */
 
-    IERC20 public rewardsToken;
-    IERC20 public stakingToken;
-    uint256 public periodFinish = 0;
-    uint256 public rewardRate = 0;
-    uint256 public rewardsDuration = 7 days;
+    IERC20 public rewardsToken; // AVME
+    IERC20 public stakingToken; // LP
+    uint256 public periodFinish = 0;  // Timestamp limit for staking rewards
+    uint256 public rewardRate = 0;  // How many tokens will be distributed during rewards duration
+    uint256 public rewardsDuration = 7 days;  // Time interval during which rewards will be distributed
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
     mapping(address => uint256) public userRewardPerTokenPaid;
-    mapping(address => uint256) public rewards;
+    mapping(address => uint256) public rewards; // Rewarded AVME balances for each user
 
-    uint256 private _totalSupply;
-    mapping(address => uint256) private _balances;
+    uint256 private _totalSupply; // Total LP currently in pool
+    mapping(address => uint256) private _balances;  // LP balances for each user
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -50,38 +48,28 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
 
     /* ========== VIEWS ========== */
 
-    function totalSupply() external view returns (uint256) {
-        return _totalSupply;
-    }
-
-    function balanceOf(address account) external view returns (uint256) {
-        return _balances[account];
-    }
-
-    function lastTimeRewardApplicable() public view returns (uint256) {
-        return Math.min(block.timestamp, periodFinish);
-    }
+    function totalSupply() external view returns (uint256) { return _totalSupply; }
+    function balanceOf(address account) external view returns (uint256) { return _balances[account]; }
+    function lastTimeRewardApplicable() public view returns (uint256) { return Math.min(block.timestamp, periodFinish); }
 
     function rewardPerToken() public view returns (uint256) {
-        if (_totalSupply == 0) {
-            return rewardPerTokenStored;
-        }
-        return
-            rewardPerTokenStored.add(
-                lastTimeRewardApplicable().sub(lastUpdateTime).mul(rewardRate).mul(1e18).div(_totalSupply)
-            );
+        if (_totalSupply == 0) { return rewardPerTokenStored; }
+        return rewardPerTokenStored.add(
+            lastTimeRewardApplicable().sub(lastUpdateTime).mul(rewardRate).mul(1e18).div(_totalSupply)
+        );
     }
 
+    // Calculate how much AVME a given address has potentially earned so far
     function earned(address account) public view returns (uint256) {
         return _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(1e18).add(rewards[account]);
     }
 
-    function getRewardForDuration() external view returns (uint256) {
-        return rewardRate.mul(rewardsDuration);
-    }
+    // Get the total reward for the given duration
+    function getRewardForDuration() external view returns (uint256) { return rewardRate.mul(rewardsDuration); }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
+    // Stake a given amount of LP
     function stake(uint256 amount) external nonReentrant notPaused updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
@@ -90,6 +78,7 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
         emit Staked(msg.sender, amount);
     }
 
+    // Withdraw a given amount of LP
     function withdraw(uint256 amount) public nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
@@ -98,6 +87,7 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
         emit Withdrawn(msg.sender, amount);
     }
 
+    // Withdraw the accumulated reward in AVME so far
     function getReward() public nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
@@ -107,6 +97,7 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
         }
     }
 
+    // Get out of the pool and withdraw any remaining LP tokens/AVME rewards
     function exit() external {
         withdraw(_balances[msg.sender]);
         getReward();
@@ -122,12 +113,6 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
             uint256 leftover = remaining.mul(rewardRate);
             rewardRate = reward.add(leftover).div(rewardsDuration);
         }
-
-        // Ensure the provided reward amount is not more than the balance in the contract.
-        // This keeps the reward rate in the right range, preventing overflows due to
-        // very high values of rewardRate in the earned and rewardsPerToken functions;
-        // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(rewardsDuration);
         emit RewardAdded(reward);
@@ -140,6 +125,7 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
         emit Recovered(tokenAddress, tokenAmount);
     }
 
+    // Set the time interval for rewards to be distributed
     function setRewardsDuration(uint256 _rewardsDuration) external onlyOwner {
         require(
             block.timestamp > periodFinish,
@@ -151,13 +137,13 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
 
     /* ========== MODIFIERS ========== */
 
+    // Update the reward for a given Account
     modifier updateReward(address account) {
+        require(account != address(0), "Can't update reward for zero address");
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
-        if (account != address(0)) {
-            rewards[account] = earned(account);
-            userRewardPerTokenPaid[account] = rewardPerTokenStored;
-        }
+        rewards[account] = earned(account);
+        userRewardPerTokenPaid[account] = rewardPerTokenStored;
         _;
     }
 
@@ -170,3 +156,4 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
     event RewardsDurationUpdated(uint256 newDuration);
     event Recovered(address token, uint256 amount);
 }
+
