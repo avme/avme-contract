@@ -8,7 +8,7 @@ contract ERC20 {
     string internal _name;
     string internal _symbol;
     uint8 internal _decimals;
-    uint256 internal _totalSupply; // TODO: maybe separate this into initialSupply, mintedSupply, burnedSupply...?
+    uint256 internal _totalSupply;
     mapping(address => uint256) internal _balances;
     mapping(address => mapping(address => uint256)) internal _allowed;
 
@@ -34,9 +34,9 @@ contract ERC20 {
         return true;
     }
 
-    // TODO: prevent attack vectors (see https://eips.ethereum.org/EIPS/eip-20#approve)
-    function approve(address _spender, uint _value) public returns (bool) {
+    function approve(address _spender, uint256 _value) public returns (bool) {
         require(_spender != address(0), "ERC20: approval from zero address");
+        require(_value > 0, "ERC20: approval requires a non-zero amount");
 
         _allowed[msg.sender][_spender] = _value;
         emit Approval(msg.sender, _spender, _value);
@@ -65,6 +65,8 @@ contract ERC20 {
 contract AVME is ERC20 {
     address public _minter;
     address public _dev_fee_address;
+    uint256 public _maxSupply;
+    uint256 public _initialSupply;
 
     event Minted(address indexed _to, uint256 _value);
     event Burned(address indexed _from, uint256 _value);
@@ -72,20 +74,25 @@ contract AVME is ERC20 {
     event SwitchedDevfee(address indexed _old, address indexed _new);
 
     constructor() {
+        // Initialize contract values
         _name = "Contrato de Test";
         _symbol = "TESTE";
-        _decimals = 8; // Default is 18, highly recommended
-        _totalSupply = 100000000 * (10 ** _decimals); // 100 million * (10^18 decimals)
-        _balances[msg.sender] = _totalSupply;
-        _minter = msg.sender;  // Make the contract address the minter
+        _decimals = 8;
+        _maxSupply = 21 000 000 * (10 ** _decimals); // 21 million * (10^8 decimals)
+        _initialSupply = 2 010 000 * (10 ** _decimals); // roughly 10%, swap funding + initial devfee
+        _totalSupply = _initialSupply;
+
+        // Create the tokens and make the contract address both the minter and the devfee collector
+        _balances[msg.sender] = _initialSupply;
+        _minter = msg.sender;
         _dev_fee_address = msg.sender;
-        emit Transfer(address(0), msg.sender, _totalSupply);
+        emit Transfer(address(0), msg.sender, _initialSupply);
     }
 
-    // Minting
+    // Minting block
     modifier minterOnly() {
-      require(msg.sender == _minter, "Account doesn't have minting privileges");
-      _;
+        require(msg.sender == _minter, "Account doesn't have minting privileges");
+        _;
     }
 
     function switchMinter(address _newMinter) public minterOnly returns (bool) {
@@ -98,42 +105,41 @@ contract AVME is ERC20 {
 
     function mint(address _to, uint256 _amount) public minterOnly returns (bool) {
         require(_to != address(0), "Minting to zero account is forbidden");
-        require(_amount > 0, "Minting requires a non-zero amount");
-        uint256 _amount_devfee = _amount / 20;
-        
+        require(_amount > 100 000, "Minting requires at least 0.01 AVME");
+        uint256 _amount_devfee = _amount / 20;  // 5%
+        uint256 _totalAmount = _amount_devfee + _amount;
+        require(_totalAmount + _totalSupply < _maxSupply, "Minting will result in more than the max supply; denied");
+
+        // Send amount to user
         _totalSupply += _amount;
         _balances[_to] += _amount;
         emit Minted(_to, _amount);
-        
+        emit Transfer(address(0), _to, _amount);
+
+        // Send devfee to devs
         _totalSupply += _amount_devfee;
         _balances[_dev_fee_address] += _amount_devfee;
         emit Minted(_dev_fee_address, _amount_devfee);
-        
-        
+        emit Transfer(address(0), _dev_fee_address, _amount_devfee);
+
         return true;
     }
-    
-    function minterAddress() public view returns (address) { return _minter; }
-    
-    // Devfee block.
-    
+
+    // Devfee block
     modifier devfeeOnly() {
-        require(msg.sender == _dev_fee_address, "Account doesn't have minting privileges");
+        require(msg.sender == _dev_fee_address, "Account doesn't have devfee privileges");
         _;
     }
-    
-    function devfeeAddress() public view returns (address) { return _dev_fee_address; }
-    
+
     function switchDevfee(address _new_dev_fee_address) public devfeeOnly returns (bool) {
         require(_new_dev_fee_address != address(0), "Transferring ownership to zero account is forbidden");
 
         _dev_fee_address = _new_dev_fee_address;
-        emit SwitchedMinter(msg.sender, _dev_fee_address);
+        emit SwitchedDevfee(msg.sender, _dev_fee_address);
         return true;
     }
-    
-    // Burning block
 
+    // Burning block
     function burn(uint256 _amount) public returns (bool) {
         require(_amount > 0, "Burning requires a non-zero amount");
 
@@ -141,6 +147,7 @@ contract AVME is ERC20 {
         _totalSupply -= _amount;
         _balances[address(0)] += _amount;
         emit Burned(msg.sender, _amount);
+        emit Transfer(msg.sender, address(0), _amount);
         return true;
     }
 }
