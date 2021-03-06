@@ -1,11 +1,11 @@
 pragma solidity ^0.5.16;
 
-import "https://github.com/itamarcps/openzeppelin-contracts/blob/release-v2.4.0/contracts/math/Math.sol";
-import "https://github.com/itamarcps/openzeppelin-contracts/blob/release-v2.4.0/contracts/math/SafeMath.sol";
-import "https://github.com/itamarcps/openzeppelin-contracts/blob/release-v2.4.0/contracts/ownership/Ownable.sol";
-import "https://github.com/itamarcps/openzeppelin-contracts/blob/release-v2.4.0/contracts/token/ERC20/ERC20Detailed.sol";
-import "https://github.com/itamarcps/openzeppelin-contracts/blob/release-v2.4.0/contracts/token/ERC20/SafeERC20.sol";
-import "https://github.com/itamarcps/openzeppelin-contracts/blob/release-v2.4.0/contracts/utils/ReentrancyGuard.sol";
+import "https://github.com/avme/openzeppelin-contracts/blob/release-v2.4.0/contracts/math/Math.sol";
+import "https://github.com/avme/openzeppelin-contracts/blob/release-v2.4.0/contracts/math/SafeMath.sol";
+import "https://github.com/avme/openzeppelin-contracts/blob/release-v2.4.0/contracts/ownership/Ownable.sol";
+import "https://github.com/avme/openzeppelin-contracts/blob/release-v2.4.0/contracts/token/ERC20/ERC20Detailed.sol";
+import "https://github.com/avme/openzeppelin-contracts/blob/release-v2.4.0/contracts/token/ERC20/SafeERC20.sol";
+import "https://github.com/avme/openzeppelin-contracts/blob/release-v2.4.0/contracts/utils/ReentrancyGuard.sol";
 
 // Inheritance
 import "./interfaces/IStakingRewards.sol";
