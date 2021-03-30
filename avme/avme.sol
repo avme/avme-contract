@@ -97,7 +97,7 @@ contract AVME is ERC20 {
         _;
     }
 
-    function switchMinter(address _newMinter) public devfeeOnly returns (bool) {
+    function switchMinter(address _newMinter) public minterOnly returns (bool) {
         // Devfee wallet is the wallet that is allowed to change the minter role.
         require(_newMinter != address(0), "Transferring ownership to zero account is forbidden");
 
