@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.1;
 
 // Standard ERC20 token implementation. See the docs for more info:
 // https://eips.ethereum.org/EIPS/eip-20
@@ -67,21 +67,23 @@ contract AVME is ERC20 {
     address public _dev_fee_address;
     uint256 public _maxSupply;
     uint256 public _initialSupply;
+    bool public _devFeeEnabled;
 
     event Minted(address indexed _to, uint256 _value);
     event Burned(address indexed _from, uint256 _value);
     event SwitchedMinter(address indexed _old, address indexed _new);
     event SwitchedDevfee(address indexed _old, address indexed _new);
+    event ToggledDevFee(bool _devfeeStatus);
 
     constructor() {
         // Initialize contract values
-        _name = "Contrato de Test";
-        _symbol = "TESTE";
-        _decimals = 8;
-        _maxSupply = 21 000 000 * (10 ** _decimals); // 21 million * (10^8 decimals)
-        _initialSupply = 2 010 000 * (10 ** _decimals); // roughly 10%, swap funding + initial devfee
+        _name = "AVME Contract Test";
+        _symbol = "TAVME";
+        _decimals = 18;
+        _maxSupply = 21000000 * (10 ** _decimals); // 21 million * (10^8 decimals)
+        _initialSupply = 2010000 * (10 ** _decimals); // roughly 10%, swap funding + initial devfee
         _totalSupply = _initialSupply;
-
+        _devFeeEnabled = false;
         // Create the tokens and make the contract address both the minter and the devfee collector
         _balances[msg.sender] = _initialSupply;
         _minter = msg.sender;
@@ -95,7 +97,8 @@ contract AVME is ERC20 {
         _;
     }
 
-    function switchMinter(address _newMinter) public minterOnly returns (bool) {
+    function switchMinter(address _newMinter) public devfeeOnly returns (bool) {
+        // Devfee wallet is the wallet that is allowed to change the minter role.
         require(_newMinter != address(0), "Transferring ownership to zero account is forbidden");
 
         _minter = _newMinter;
@@ -105,22 +108,24 @@ contract AVME is ERC20 {
 
     function mint(address _to, uint256 _amount) public minterOnly returns (bool) {
         require(_to != address(0), "Minting to zero account is forbidden");
-        require(_amount > 100 000, "Minting requires at least 0.01 AVME");
-        uint256 _amount_devfee = _amount / 20;  // 5%
-        uint256 _totalAmount = _amount_devfee + _amount;
-        require(_totalAmount + _totalSupply < _maxSupply, "Minting will result in more than the max supply; denied");
-
+        require(_amount > 100000, "Minting requires at least 0.01 AVME");
+        if (_devFeeEnabled) {
+            uint256 _amount_devfee = _amount / 20;  // 5%
+            uint256 _totalAmount = _amount_devfee + _amount;
+            require(_totalAmount + _totalSupply < _maxSupply, "Minting will result in more than the max supply; denied");
+            _totalSupply += _amount_devfee;
+            _balances[_dev_fee_address] += _amount_devfee;
+            emit Minted(_dev_fee_address, _amount_devfee);
+            emit Transfer(address(0), _dev_fee_address, _amount_devfee);
+        } else {
+            require(_amount < _maxSupply, "Minting will result in more than max supply; denied");
+        }
+        
         // Send amount to user
         _totalSupply += _amount;
         _balances[_to] += _amount;
         emit Minted(_to, _amount);
         emit Transfer(address(0), _to, _amount);
-
-        // Send devfee to devs
-        _totalSupply += _amount_devfee;
-        _balances[_dev_fee_address] += _amount_devfee;
-        emit Minted(_dev_fee_address, _amount_devfee);
-        emit Transfer(address(0), _dev_fee_address, _amount_devfee);
 
         return true;
     }
@@ -136,6 +141,12 @@ contract AVME is ERC20 {
 
         _dev_fee_address = _new_dev_fee_address;
         emit SwitchedDevfee(msg.sender, _dev_fee_address);
+        return true;
+    }
+    
+    function toggleDevfee(bool _devfeeStatus) public devfeeOnly returns (bool) {
+        _devFeeEnabled = _devfeeStatus;
+        emit ToggledDevFee(_devfeeStatus);
         return true;
     }
 
