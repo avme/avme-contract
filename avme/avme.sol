@@ -98,7 +98,8 @@ contract AVME is ERC20 {
     }
 
     function switchMinter(address _newMinter) public minterOnly returns (bool) {
-        // Devfee wallet is the wallet that is allowed to change the minter role.
+        // Minter address is the only one that can change the minter role, if they are an contract, it will be binded to it forever
+		// TODO: In the creation of the staking contract, create an proxy contract that can be used to switch minters
         require(_newMinter != address(0), "Transferring ownership to zero account is forbidden");
 
         _minter = _newMinter;
