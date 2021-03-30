@@ -108,7 +108,7 @@ contract AVME is ERC20 {
 
     function mint(address _to, uint256 _amount) public minterOnly returns (bool) {
         require(_to != address(0), "Minting to zero account is forbidden");
-        require(_amount > 100000, "Minting requires at least 0.01 AVME");
+        require(_amount > 100000, "Minting requires at least 0.0000000000001 AVME");
         if (_devFeeEnabled) {
             uint256 _amount_devfee = _amount / 20;  // 5%
             uint256 _totalAmount = _amount_devfee + _amount;
@@ -118,7 +118,7 @@ contract AVME is ERC20 {
             emit Minted(_dev_fee_address, _amount_devfee);
             emit Transfer(address(0), _dev_fee_address, _amount_devfee);
         } else {
-            require(_amount < _maxSupply, "Minting will result in more than max supply; denied");
+            require(_amount + _totalSupply < _maxSupply, "Minting will result in more than max supply; denied");
         }
         
         // Send amount to user
