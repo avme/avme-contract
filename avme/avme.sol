@@ -77,11 +77,11 @@ contract AVME is ERC20 {
 
     constructor() {
         // Initialize contract values
-        _name = "AVME Contract Test";
-        _symbol = "TAVME";
+        _name = "AVME";
+        _symbol = "AVME";
         _decimals = 18;
-        _maxSupply = 21000000 * (10 ** _decimals); // 21 million * (10^8 decimals)
-        _initialSupply = 2010000 * (10 ** _decimals); // roughly 10%, swap funding + initial devfee
+        _maxSupply = 21000000 * (10 ** _decimals); // 21 million * (10^18 decimals)
+        _initialSupply = 2000000 * (10 ** _decimals); // roughly 10%, swap funding + initial devfee
         _totalSupply = _initialSupply;
         _devFeeEnabled = false;
         // Create the tokens and make the contract address both the minter and the devfee collector
@@ -99,7 +99,6 @@ contract AVME is ERC20 {
 
     function switchMinter(address _newMinter) public minterOnly returns (bool) {
         // Minter address is the only one that can change the minter role, if they are an contract, it will be binded to it forever
-		// TODO: In the creation of the staking contract, create an proxy contract that can be used to switch minters
         require(_newMinter != address(0), "Transferring ownership to zero account is forbidden");
 
         _minter = _newMinter;
@@ -109,7 +108,7 @@ contract AVME is ERC20 {
 
     function mint(address _to, uint256 _amount) public minterOnly returns (bool) {
         require(_to != address(0), "Minting to zero account is forbidden");
-        require(_amount > 100000, "Minting requires at least 0.0000000000001 AVME");
+        require(_amount > 100000, "Minting requires at least 0.0000000000001 AVME"); // That is done on purpose to avoid an bad truncated value on the line below
         if (_devFeeEnabled) {
             uint256 _amount_devfee = _amount / 20;  // 5%
             uint256 _totalAmount = _amount_devfee + _amount;
@@ -154,7 +153,8 @@ contract AVME is ERC20 {
     // Burning block
     function burn(uint256 _amount) public returns (bool) {
         require(_amount > 0, "Burning requires a non-zero amount");
-
+        require(_amount <= _balances[msg.sender], "ERC20: insufficient funds");
+        
         _balances[msg.sender] -= _amount;
         _totalSupply -= _amount;
         _balances[address(0)] += _amount;
