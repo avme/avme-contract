@@ -139,11 +139,12 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
 
     // Update the reward for a given Account
     modifier updateReward(address account) {
-        require(account != address(0), "Can't update reward for zero address");
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
-        rewards[account] = earned(account);
-        userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        }
         _;
     }
 
