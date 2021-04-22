@@ -92,7 +92,7 @@ contract StakingPool is IStakingRewards, ReentrancyGuard, Pausable {
             rewardsToken.safeMint(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
-        if ((block.timestamp.add(43200)) > periodFinish) {
+        if ((block.timestamp) > periodFinish) {
             calculateNewReward();
         }
     }
@@ -106,13 +106,7 @@ contract StakingPool is IStakingRewards, ReentrancyGuard, Pausable {
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function notifyRewardAmount(uint256 reward) private updateReward(address(0)) {
-        if (block.timestamp >= periodFinish) {
-            rewardRate = reward.div(rewardsDuration);
-        } else {
-            uint256 remaining = periodFinish.sub(block.timestamp);
-            uint256 leftover = remaining.mul(rewardRate);
-            rewardRate = reward.add(leftover).div(rewardsDuration);
-        }
+        rewardRate = reward.div(rewardsDuration);
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(rewardsDuration);
         emit RewardAdded(reward);
