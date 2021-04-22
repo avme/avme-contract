@@ -91,7 +91,6 @@ contract AVME is ERC20 {
         emit Transfer(address(0), msg.sender, _initialSupply);
     }
 
-    function maxSupply() public view returns (uint256) { return _maxSupply; }
     // Minting block
     modifier minterOnly() {
         require(msg.sender == _minter, "Account doesn't have minting privileges");
