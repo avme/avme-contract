@@ -9,11 +9,10 @@ import "https://github.com/avme/openzeppelin-contracts/blob/release-v2.4.0/contr
 
 // Inheritance
 import "./interfaces/IStakingRewards.sol";
-import "./RewardsDistributionRecipient.sol";
 import "./Pausable.sol";
 
 // https://docs.synthetix.io/contracts/source/contracts/stakingrewards
-contract StakingPool is IStakingRewards, RewardsDistributionRecipient, ReentrancyGuard, Pausable {
+contract StakingPool is IStakingRewards, ReentrancyGuard, Pausable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -37,17 +36,15 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
 
     constructor(
         address _owner,
-        address _rewardsDistribution,
         address _rewardsToken,
         address _stakingToken
     ) public Owned(_owner) {
         rewardsToken = IERC20(_rewardsToken);
         stakingToken = IERC20(_stakingToken);
-        rewardsDistribution = _rewardsDistribution;
     }
 
     /* ========== VIEWS ========== */
-
+    function maxRewardSupply() external view returns (uint256) { return rewardsToken._maxSupply(); }
     function totalSupply() external view returns (uint256) { return _totalSupply; }
     function balanceOf(address account) external view returns (uint256) { return _balances[account]; }
     function lastTimeRewardApplicable() public view returns (uint256) { return Math.min(block.timestamp, periodFinish); }
@@ -95,6 +92,9 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
             rewardsToken.safeMint(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
+        if ((block.timestamp.add(43200)) > periodFinish) {
+            calculateNewReward();
+        }
     }
 
     // Get out of the pool and withdraw any remaining LP tokens/AVME rewards
@@ -105,7 +105,7 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function notifyRewardAmount(uint256 reward) external onlyRewardsDistribution updateReward(address(0)) {
+    function notifyRewardAmount(uint256 reward) private updateReward(address(0)) {
         if (block.timestamp >= periodFinish) {
             rewardRate = reward.div(rewardsDuration);
         } else {
@@ -116,6 +116,12 @@ contract StakingPool is IStakingRewards, RewardsDistributionRecipient, Reentranc
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(rewardsDuration);
         emit RewardAdded(reward);
+    }
+    
+    function calculateNewReward() private {
+        uint256 leftoverSupply = rewardsToken._maxSupply().sub(rewardsToken.totalSupply());
+        uint256 rewardForNextDuration = leftoverSupply.div(10).div(52);
+        notifyRewardAmount(rewardForNextDuration);
     }
 
     // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
