@@ -118,23 +118,6 @@ contract StakingPool is IStakingRewards, ReentrancyGuard, Pausable {
         notifyRewardAmount(rewardForNextDuration);
     }
 
-    // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
-    function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
-        require(tokenAddress != address(stakingToken), "Cannot withdraw the staking token");
-        IERC20(tokenAddress).safeTransfer(owner, tokenAmount);
-        emit Recovered(tokenAddress, tokenAmount);
-    }
-
-    // Set the time interval for rewards to be distributed
-    function setRewardsDuration(uint256 _rewardsDuration) external onlyOwner {
-        require(
-            block.timestamp > periodFinish,
-            "Previous rewards period must be complete before changing the duration for the new period"
-        );
-        rewardsDuration = _rewardsDuration;
-        emit RewardsDurationUpdated(rewardsDuration);
-    }
-
     /* ========== MODIFIERS ========== */
 
     // Update the reward for a given Account
