@@ -114,7 +114,7 @@ contract StakingPool is IStakingRewards, ReentrancyGuard, Pausable {
     
     function calculateNewReward() private {
         uint256 leftoverSupply = rewardsToken._maxSupply().sub(rewardsToken.totalSupply());
-        uint256 rewardForNextDuration = leftoverSupply.div(10).div(52);
+        uint256 rewardForNextDuration = leftoverSupply.div(10).div(52); // 10% Per year from leftover / 52 Weeks
         notifyRewardAmount(rewardForNextDuration);
     }
 
